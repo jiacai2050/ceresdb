@@ -35,11 +35,9 @@ use datafusion::{
 };
 use futures::StreamExt;
 use itertools::Itertools;
-use object_store::path::Path;
+use object_store::{path::Path, PutPayload};
 use parquet::{
-    arrow::{async_writer::ParquetObjectWriter, AsyncArrowWriter},
-    file::properties::WriterProperties,
-    format::SortingColumn,
+    arrow::AsyncArrowWriter, file::properties::WriterProperties, format::SortingColumn,
     schema::types::ColumnPath,
 };
 use tokio::runtime::Runtime;
@@ -189,9 +187,9 @@ impl CloudObjectStorage {
         let file_id = SstFile::allocate_id();
         let file_path = self.sst_path_gen.generate(file_id);
         let file_path = Path::from(file_path);
-        let object_store_writer = ParquetObjectWriter::new(self.store.clone(), file_path.clone());
+        let mut buf = Vec::new();
         let mut writer = AsyncArrowWriter::try_new(
-            object_store_writer,
+            &mut buf,
             self.schema().clone(),
             Some(self.write_props.clone()),
         )
@@ -210,6 +208,11 @@ impl CloudObjectStorage {
                 .context("write arrow batch")?;
         }
         writer.close().await.context("close arrow writer")?;
+        self.store
+            .put(&file_path, PutPayload::from_iter(buf))
+            .await
+            .context("put object")?;
+
         let object_meta = self
             .store
             .head(&file_path)

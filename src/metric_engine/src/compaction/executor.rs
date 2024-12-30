@@ -24,11 +24,8 @@ use anyhow::Context;
 use async_scoped::TokioScope;
 use datafusion::{execution::TaskContext, physical_plan::execute_stream};
 use futures::StreamExt;
-use object_store::path::Path;
-use parquet::{
-    arrow::{async_writer::ParquetObjectWriter, AsyncArrowWriter},
-    file::properties::WriterProperties,
-};
+use object_store::{path::Path, PutPayload};
+use parquet::{arrow::AsyncArrowWriter, file::properties::WriterProperties};
 use tokio::sync::mpsc::Sender;
 use tracing::{debug, error, trace};
 
@@ -173,10 +170,9 @@ impl Executor {
         let file_id = SstFile::allocate_id();
         let file_path = self.inner.sst_path_gen.generate(file_id);
         let file_path = Path::from(file_path);
-        let object_store_writer =
-            ParquetObjectWriter::new(self.inner.store.clone(), file_path.clone());
+        let mut buf = Vec::new();
         let mut writer = AsyncArrowWriter::try_new(
-            object_store_writer,
+            &mut buf,
             self.inner.schema.arrow_schema.clone(),
             Some(self.inner.write_props.clone()),
         )
@@ -189,6 +185,11 @@ impl Executor {
             writer.write(&batch).await.context("write batch")?;
         }
         writer.close().await.context("close writer")?;
+        self.inner
+            .store
+            .put(&file_path, PutPayload::from_iter(buf))
+            .await
+            .context("put object")?;
         let object_meta = self
             .inner
             .store

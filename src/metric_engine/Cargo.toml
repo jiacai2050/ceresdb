@@ -39,7 +39,11 @@ futures = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 object_store = { workspace = true }
-parquet = { workspace = true, features = ["object_store"] }
+parquet = { workspace = true, features = [
+    "arrow",
+    "async",
+    "object_store",
+] }
 pb_types = { workspace = true }
 prost = { workspace = true }
 serde = { workspace = true }

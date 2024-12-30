@@ -17,7 +17,7 @@
 
 //! Storage Engine for metrics.
 
-#![feature(duration_constructors)]
+#![feature(lazy_cell)]
 mod compaction;
 pub mod config;
 pub mod error;

@@ -15,7 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#![feature(duration_constructors)]
+#![feature(lazy_cell)]
+#![feature(atomic_bool_fetch_not)]
 mod config;
 use std::{
     fs,
